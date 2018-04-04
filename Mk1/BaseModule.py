@@ -3,6 +3,7 @@ This module takes in images, analysese them and returns results
 
 """
 
+import CalcLine as calc
 
 import cv2
 import numpy as np
@@ -115,7 +116,7 @@ def aggLines(angles):
 
     # Cluster angles if outside of difference threshold and calculate/return means for each cluster
     cl = HierarchicalClustering(angles,lambda x,y: abs(x-y))
-    print ([np.mean(cluster) for cluster in cl.getlevel(diffThreshold)])
+    return ([np.mean(cluster) for cluster in cl.getlevel(diffThreshold)])
 
 
 def lineDetection(cur, score):    
@@ -129,7 +130,7 @@ def lineDetection(cur, score):
     lines = cv2.HoughLinesP(image = cur, rho=rho, theta=np.pi/180, threshold=lineThreshold, lines=np.array([]), minLineLength=minLineLength, maxLineGap=maxLineGap)
 
     angles = []
-
+    lineList = []
 
     if lines is not None:       
         print("Found this many lines: " + str(lines.shape[0]))
@@ -144,21 +145,41 @@ def lineDetection(cur, score):
             x1,y1,x2,y2 = line[0]
 
             # Store line angle to list 
-            angles.append(lineAngle(x1, x2, y1, y2))
+            angle = lineAngle(x1, x2, y1, y2)
+            angles.append(angle)
             # print("This is line angle: " + str(lineAngle(x1, x2, y1, y2)))
 
-            cv2.line(cur,(x1,y1),(x2,y2),(0,255,0),2)
 
-            # Print images to screen
-            if LINES:
-                cv2.imshow("houghlines", cur)
-            # cv2.waitKey(1)
+            slope = calc.calcSlope((x1, y1), (x2, y2))
+            intercept = calc.calcIntercept(slope, (x2, y2))
+
+            # print("slope: ", str(slope), " Intercept", str(intercept))
+            
+
+            lineDict = {"P1": (x1, y1), "P2": (x2, y2), "Slope": slope, "Intercept": intercept, "Angle": angle}
+            lineList.append(lineDict)
 
 
-        cv2.waitKey(1000)
 
-        # Cluster line angles to sort misc and perpendicular lines out
-        aggLines(angles)
+        # Cluster line angles to sort misc and perpendicular lines out, return cluster list
+        angleClusters = aggLines(angles)
+
+
+        # display lines in different colors based on their clusters
+        lineColors = [(0,255,0), (255,0,0), (0,0,255), (0,255,255), (255,255,0)]
+        for i in range(len(lineList)):
+            localAng = lineList[i]["Angle"]
+            for v in range(len(angleClusters)):
+                if localAng < angleClusters[v]+11 and localAng > angleClusters[v]-11:                    
+
+                    # cv2.line(cur,(x1,y1),(x2,y2),lineColors[v],2)
+
+                    cv2.line(cur,(lineList[i]["P1"]),(lineList[i]["P2"]),lineColors[v],2)
+
+        # Print images to screen
+        if LINES:
+            cv2.imshow("houghlines", cur)
+        cv2.waitKey(0)
 
     else: 
         print("exception")
