@@ -13,11 +13,11 @@
 
     3. Handle return value from analysis function
     - Direct return value to actuation module
-
-
 """
 
 import BaseModule as base
+import CalcLine as calc
+
 import cv2
 # import numpy as np
 
@@ -25,6 +25,7 @@ import cv2
 # 1: Local Image Import
 # 2: Local Video Import
 # 3: Video Stream
+# 4: TEST
 
 MODE = 2
 
@@ -34,10 +35,11 @@ SCORE = False # print the 'score' for line detection
 # A score of the number of frames where lines were found
 
 localImgLocation = '../TrainingMedia/WebImages/web_pool_9.jpg'
-localVideoLocation = '../TrainingMedia/CurtainVideo/piOutput_end.avi'
+localVideoLocation = '../TrainingMedia/CurtainVideo/piOutput_end.mov'
 
-""" Imports + returns locally stored images in grayscale """
+
 def importLocalImg(loc):
+    """ Imports + returns locally stored images in grayscale """
     # read in the training image
     img = cv2.imread(loc, cv2.IMREAD_GRAYSCALE)
 
@@ -47,8 +49,8 @@ def importLocalImg(loc):
 
     return res
 
-""" Imports + returns video file for processing """
 def importLocalVideo(loc):
+    """ Imports + returns video file for processing """
     score = [0,0]
 
     cap = cv2.VideoCapture(loc)
@@ -91,10 +93,24 @@ elif MODE == 2:
     if rtnVal == False:
         print("Exiting")
         exit(0) 
-
 elif MODE == 3:
-  pass  
-     
+    print(calc.calcSlope((0,0), (2,2)))
+    pass  
+elif MODE == 4:
+    P1 = (0,0)
+    P2 = (1,2)
+    slope = 0.0
+    slope = calc.calcSlope(P1, P2)
+    intercept = calc.calcIntercept(slope, P2)
+    print("This is the slope: ", str(slope), "and the intercept: ", str(intercept))
 
+    # Store these values in a dictionary list
+    lineVals = []
+    one = {"P1": P1, "P2": P2, "Slope": slope, "Intercept": intercept }
+    two = {"P1": P1, "P2": P2, "Slope": 0.00, "Intercept": 0.000 }
 
-cv2.waitKey(5000)
+    lineVals.append(one)
+    lineVals.append(two)
+    print(lineVals[1]["Slope"])
+
+cv2.waitKey(1000)
