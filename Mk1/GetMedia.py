@@ -19,7 +19,7 @@
 
 import BaseModule as base
 import cv2
-import numpy as np
+# import numpy as np
 
 # Possible modes:
 # 1: Local Image Import
@@ -28,10 +28,13 @@ import numpy as np
 
 MODE = 2
 
+# Printing flags
+SCORE = False # print the 'score' for line detection
+
 # A score of the number of frames where lines were found
 
 localImgLocation = '../TrainingMedia/WebImages/web_pool_9.jpg'
-localVideoLocation = '../TrainingMedia/CurtainVideo/piOutput_middle2.avi'
+localVideoLocation = '../TrainingMedia/CurtainVideo/piOutput_end.avi'
 
 """ Imports + returns locally stored images in grayscale """
 def importLocalImg(loc):
@@ -47,23 +50,34 @@ def importLocalImg(loc):
 """ Imports + returns video file for processing """
 def importLocalVideo(loc):
     score = [0,0]
-    count = 0
 
     cap = cv2.VideoCapture(loc)
     while(cap.isOpened()):
-
+        
+        # increment number of frames imported for percentage score val
         score[0] += 1
-        ret, frame = cap.read()
-        cv2.waitKey(1)
 
+        # import image
+        ret, frame = cap.read()
+
+        # if frame is null exit
+        if frame is None or ret is False:
+            print("Frame is none..")        
+            cap.release()
+            cv2.destroyAllWindows()
+            return False
+
+        # Pass image to processing module
         res, score = base.holderFunc(frame, score)
 
-        scoreCal(score)
+        if SCORE:
+            # Calculate percentage score for number of frames with detected lines
+            scoreCal(score)
 
+    # clean up
     cap.release()
     cv2.destroyAllWindows()
-
-    return 1   
+    return True   
 
 def scoreCal(score):
     pcnt = (int(score[1])/int(score[0]))*100
@@ -73,7 +87,11 @@ if MODE == 1:
     # Import image
     rtnVal = importLocalImg(localImgLocation)
 elif MODE == 2:
-    rtnVal = importLocalVideo(localVideoLocation)    
+    rtnVal = importLocalVideo(localVideoLocation) 
+    if rtnVal == False:
+        print("Exiting")
+        exit(0) 
+
 elif MODE == 3:
   pass  
      
