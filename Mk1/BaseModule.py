@@ -8,11 +8,14 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt 
 from math import pi
+import math # for atan2(line angle)
+
+from cluster import * # for line clustering
 
 # printing defines
-INVERTED = False   
-BLURRED = False
-CLOSED = False
+INVERTED = True   
+BLURRED = True
+CLOSED = True
 EDGES = False
 LINES = True
 
@@ -28,6 +31,7 @@ imgSize = (500,300)
 
 def holderFunc(cur, score):
     if cur is None:
+        print("cur is none, returning")
         return 0, score
 
     cur = preprocess(cur)
@@ -37,8 +41,6 @@ def holderFunc(cur, score):
     # Print canny edge results
     if EDGES:
         plt.show(100)
-
-    cv2.destroyAllWindows()
 
     return 1, score
 
@@ -50,6 +52,7 @@ def resizeImg(img):
         cur = cv2.resize(img, (500,300), interpolation = cv2.INTER_LINEAR)
     else:
         cur = cv2.resize(img, (300,500), interpolation = cv2.INTER_LINEAR) 
+
     return cur
 
 def preprocess (cur):
@@ -97,48 +100,73 @@ def edgeDetection(cur):
     
     return plt, cur
 
-def lineDetection(cur, score):    
+# Calculate degrees for the input line coordinates
+def lineAngle(x1, x2, y1, y2):
+    deg = math.degrees(math.atan2(y1 - y2, x1 - x2))
+    res = (deg + 360) % 360
+    return res
 
+# Cluster the angles(degrees) of identified lines
+def aggLines(angles):
+    if angles is None:
+        print("no angles returning\n\n")
+        return
+    diffThreshold = 10.0
+
+    # Cluster angles if outside of difference threshold and calculate/return means for each cluster
+    cl = HierarchicalClustering(angles,lambda x,y: abs(x-y))
+    print ([np.mean(cluster) for cluster in cl.getlevel(diffThreshold)])
+
+
+def lineDetection(cur, score):    
     # Detect lines
-    rho = 1
+    rho = 4 # Keep high to prevent multiple paralellel lines 
     theta = np.pi/180
-    lineThreshold = 100
-    minLineLength = 80
-    maxLineGap = 40
+    lineThreshold = 40
+    minLineLength = 20
+    maxLineGap = 10
 
     lines = cv2.HoughLinesP(image = cur, rho=rho, theta=np.pi/180, threshold=lineThreshold, lines=np.array([]), minLineLength=minLineLength, maxLineGap=maxLineGap)
 
-    try:
+    angles = []
+
+
+    if lines is not None:       
         print("Found this many lines: " + str(lines.shape[0]))
 
-        if lines.shape[0]>0:
-            score[1]+=1
-            print("Got another one..")
+        score[1]+=1
 
         a,b,c = lines.shape
-
-        print(lines.shape)
 
         cur = cv2.cvtColor(cur, cv2.COLOR_GRAY2BGR)
 
         for line in lines:
             x1,y1,x2,y2 = line[0]
+
+            # Store line angle to list 
+            angles.append(lineAngle(x1, x2, y1, y2))
+            # print("This is line angle: " + str(lineAngle(x1, x2, y1, y2)))
+
             cv2.line(cur,(x1,y1),(x2,y2),(0,255,0),2)
 
             # Print images to screen
             if LINES:
                 cv2.imshow("houghlines", cur)
-            cv2.waitKey(1)
+            # cv2.waitKey(1)
 
-    except:
+
+        cv2.waitKey(1000)
+
+        # Cluster line angles to sort misc and perpendicular lines out
+        aggLines(angles)
+
+    else: 
         print("exception")
+        cv2.imshow("houghlines", cur)
+        cv2.waitKey(500)
    
     # # invert the image
     # newImg =  cv2.bitwise_not(newImg)
     return score
-
-
-def getAngles():
-    pass
 
 
