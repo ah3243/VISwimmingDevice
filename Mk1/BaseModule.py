@@ -108,15 +108,14 @@ def lineAngle(x1, x2, y1, y2):
     return res
 
 # Cluster the angles(degrees) of identified lines
-def aggLines(angles):
+def aggLines(angles, thres):
     if angles is None:
         print("no angles returning\n\n")
         return
-    diffThreshold = 10.0
 
     # Cluster angles if outside of difference threshold and calculate/return means for each cluster
     cl = HierarchicalClustering(angles,lambda x,y: abs(x-y))
-    return ([np.mean(cluster) for cluster in cl.getlevel(diffThreshold)])
+    return ([np.mean(cluster) for cluster in cl.getlevel(thresh)])
 
 
 def lineDetection(cur, score):    
@@ -124,12 +123,13 @@ def lineDetection(cur, score):
     rho = 4 # Keep high to prevent multiple paralellel lines 
     theta = np.pi/180
     lineThreshold = 40
-    minLineLength = 20
+    minLineLength = 40
     maxLineGap = 10
 
     lines = cv2.HoughLinesP(image = cur, rho=rho, theta=np.pi/180, threshold=lineThreshold, lines=np.array([]), minLineLength=minLineLength, maxLineGap=maxLineGap)
 
     angles = []
+    intercepts = []
     lineList = []
 
     if lines is not None:       
@@ -152,6 +152,7 @@ def lineDetection(cur, score):
 
             slope = calc.calcSlope((x1, y1), (x2, y2))
             intercept = calc.calcIntercept(slope, (x2, y2))
+            intercepts.append(intercept)
 
             # print("slope: ", str(slope), " Intercept", str(intercept))
             
@@ -162,19 +163,28 @@ def lineDetection(cur, score):
 
 
         # Cluster line angles to sort misc and perpendicular lines out, return cluster list
-        angleClusters = aggLines(angles)
+        angleThresh = 10.0
+        interceptThresh = 150.0
 
+        angleClusters = aggLines(angles, angleThresh)
+        interceptClusters = aggLines(intercepts, interceptThresh)
+
+        print(interceptClusters)
 
         # display lines in different colors based on their clusters
-        lineColors = [(0,255,0), (255,0,0), (0,0,255), (0,255,255), (255,255,0)]
+        lineColors = [(0,255,0), (255,0,0), (0,0,255), (0,255,255), (255,255,0), (100,255,0), (255,100,0), (100,0,255), (100,255,255), (255,255,100)]
         for i in range(len(lineList)):
             localAng = lineList[i]["Angle"]
-            for v in range(len(angleClusters)):
-                if localAng < angleClusters[v]+11 and localAng > angleClusters[v]-11:                    
+            localIntercept = lineList[i]["Intercept"]
 
-                    # cv2.line(cur,(x1,y1),(x2,y2),lineColors[v],2)
+            # for v in range(len(angleClusters)):
+                # if localAng <= angleClusters[v]+ angleThresh and localAng >= angleClusters[v]-angleThresh:                    
 
+            for v in range(len(interceptClusters)):
+                if localIntercept <= interceptClusters[v]+ interceptThresh and localIntercept >= interceptClusters[v]- interceptThresh:
                     cv2.line(cur,(lineList[i]["P1"]),(lineList[i]["P2"]),lineColors[v],2)
+
+
 
         # Print images to screen
         if LINES:
