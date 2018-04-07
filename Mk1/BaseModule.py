@@ -4,19 +4,21 @@ This module takes in images, analysese them and returns results
 """
 
 import CalcLine as calc
+import parseOutput as pOutput
 
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt 
 from math import pi
 import math # for atan2(line angle)
+from time import sleep
 
 from cluster import * # for line clustering
 
 # printing defines
-INVERTED = True   
-BLURRED = True
-CLOSED = True
+INVERTED = False   
+BLURRED = False
+CLOSED = False
 EDGES = False
 LINES = True
 
@@ -105,18 +107,33 @@ def edgeDetection(cur):
 def lineAngle(x1, x2, y1, y2):
     deg = math.degrees(math.atan2(y1 - y2, x1 - x2))
     res = (deg + 360) % 360
+
+    if res>360:
+        print("ERROR...: Angle:")
+        time.sleep(1000)
+
+
     return res
 
 # Cluster the angles(degrees) of identified lines
-def aggLines(angles, thres):
+def aggLines(angles, aggThres):
+    dcPlaces = 0
+    rtnClusters = []
+
     if angles is None:
         print("no angles returning\n\n")
         return
 
     # Cluster angles if outside of difference threshold and calculate/return means for each cluster
     cl = HierarchicalClustering(angles,lambda x,y: abs(x-y))
-    return ([np.mean(cluster) for cluster in cl.getlevel(thresh)])
 
+    clusters = ([np.mean(cluster) for cluster in cl.getlevel(aggThres)])
+
+    # Round/convert floats to ints
+    for i in clusters:
+        rtnClusters.append(int(round(i, dcPlaces)))
+
+    return rtnClusters
 
 def lineDetection(cur, score):    
     # Detect lines
@@ -145,17 +162,14 @@ def lineDetection(cur, score):
             x1,y1,x2,y2 = line[0]
 
             # Store line angle to list 
-            angle = lineAngle(x1, x2, y1, y2)
+            angle = round(lineAngle(x1, x2, y1, y2),1)
+
             angles.append(angle)
             # print("This is line angle: " + str(lineAngle(x1, x2, y1, y2)))
-
 
             slope = calc.calcSlope((x1, y1), (x2, y2))
             intercept = calc.calcIntercept(slope, (x2, y2))
             intercepts.append(intercept)
-
-            # print("slope: ", str(slope), " Intercept", str(intercept))
-            
 
             lineDict = {"P1": (x1, y1), "P2": (x2, y2), "Slope": slope, "Intercept": intercept, "Angle": angle}
             lineList.append(lineDict)
@@ -164,37 +178,41 @@ def lineDetection(cur, score):
 
         # Cluster line angles to sort misc and perpendicular lines out, return cluster list
         angleThresh = 10.0
-        interceptThresh = 150.0
-
         angleClusters = aggLines(angles, angleThresh)
-        interceptClusters = aggLines(intercepts, interceptThresh)
+        print(angleClusters)
 
-        print(interceptClusters)
+        pOutput.directionParse(angleClusters, cur)
+
+        # interceptThresh = 150.0
+        # interceptClusters = aggLines(intercepts, interceptThresh)
 
         # display lines in different colors based on their clusters
         lineColors = [(0,255,0), (255,0,0), (0,0,255), (0,255,255), (255,255,0), (100,255,0), (255,100,0), (100,0,255), (100,255,255), (255,255,100)]
+
         for i in range(len(lineList)):
             localAng = lineList[i]["Angle"]
-            localIntercept = lineList[i]["Intercept"]
+            # localIntercept = lineList[i]["Intercept"]
 
-            # for v in range(len(angleClusters)):
-                # if localAng <= angleClusters[v]+ angleThresh and localAng >= angleClusters[v]-angleThresh:                    
+            for v in range(len(angleClusters)):
+                if localAng <= angleClusters[v]+ angleThresh and localAng >= angleClusters[v]-angleThresh:                    
+     
+                    cv2.line(cur,(lineList[i]["P1"]),(lineList[i]["P2"]),pOutput.rgb2bgr(pOutput.hsv2rgb(localAng/80, 1, 1)),2)
 
-            for v in range(len(interceptClusters)):
-                if localIntercept <= interceptClusters[v]+ interceptThresh and localIntercept >= interceptClusters[v]- interceptThresh:
-                    cv2.line(cur,(lineList[i]["P1"]),(lineList[i]["P2"]),lineColors[v],2)
+            # for v in range(len(interceptClusters)):
+            #     if localIntercept <= interceptClusters[v]+ interceptThresh and localIntercept >= interceptClusters[v]- interceptThresh:
+    
+        # Print images to screen
+        if LINES:
+            cv2.imshow("houghlines", cur)
+        cv2.waitKey(50)
 
-
+    else: 
+        print("exception")
 
         # Print images to screen
         if LINES:
             cv2.imshow("houghlines", cur)
-        cv2.waitKey(0)
-
-    else: 
-        print("exception")
-        cv2.imshow("houghlines", cur)
-        cv2.waitKey(500)
+            cv2.waitKey(50)
    
     # # invert the image
     # newImg =  cv2.bitwise_not(newImg)
