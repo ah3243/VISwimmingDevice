@@ -5,22 +5,33 @@ This module takes in images, analysese them and returns results
 
 import CalcLine as calc
 import parseOutput as pOutput
+import miscFuncs
 
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt 
 from math import pi
 import math # for atan2(line angle)
-from time import sleep
+from time
 
 from cluster import * # for line clustering
 
-# printing defines
-INVERTED = False   
-BLURRED = False
-CLOSED = False
-EDGES = False
-LINES = True
+
+if (miscFuncs.isPi()):
+    # printing defines
+    INVERTED = False   
+    BLURRED = False
+    CLOSED = False
+    EDGES = False
+    LINES = False    
+else:
+    # printing defines
+    INVERTED = False   
+    BLURRED = False
+    CLOSED = False
+    EDGES = False
+    LINES = True
+
 
 # Kernel definition for dilation and errosion
 kernel = np.ones((5,5), np.uint8)
@@ -32,21 +43,20 @@ maxVal = 255
 # Standard image size
 imgSize = (500,300)
 
-def holderFunc(cur, score):
+def holderFunc(cur, score, fps):
     if cur is None:
         print("cur is none, returning")
         return 0, score
 
     cur = preprocess(cur)
     plt, cur = edgeDetection(cur)
-    score = lineDetection(cur, score)
+    score = lineDetection(cur, score, fps)
 
     # Print canny edge results
     if EDGES:
         plt.show(100)
 
     return 1, score
-
 
 """ Resizes images to a common size """
 def resizeImg(img):
@@ -55,7 +65,6 @@ def resizeImg(img):
         cur = cv2.resize(img, (500,300), interpolation = cv2.INTER_LINEAR)
     else:
         cur = cv2.resize(img, (300,500), interpolation = cv2.INTER_LINEAR) 
-
     return cur
 
 def preprocess (cur):
@@ -96,10 +105,11 @@ def edgeDetection(cur):
     # apply and plot canny edge detector
     cur = cv2.Canny(cur, 20, 60)
 
-    plt.subplot(121),plt.imshow(cur,cmap = 'gray')
-    plt.title('Original Image'), plt.xticks([]), plt.yticks([])
-    plt.subplot(122),plt.imshow(cur,cmap = 'gray')
-    plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
+    if miscFuncs.isPi() is not True:
+        plt.subplot(121),plt.imshow(cur,cmap = 'gray')
+        plt.title('Original Image'), plt.xticks([]), plt.yticks([])
+        plt.subplot(122),plt.imshow(cur,cmap = 'gray')
+        plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
     
     return plt, cur
 
@@ -111,8 +121,6 @@ def lineAngle(x1, x2, y1, y2):
     if res>360:
         print("ERROR...: Angle:")
         time.sleep(1000)
-
-
     return res
 
 # Cluster the angles(degrees) of identified lines
@@ -135,7 +143,7 @@ def aggLines(angles, aggThres):
 
     return rtnClusters
 
-def lineDetection(cur, score):    
+def lineDetection(cur, score, fps):    
     # Detect lines
     rho = 4 # Keep high to prevent multiple paralellel lines 
     theta = np.pi/180
@@ -204,7 +212,7 @@ def lineDetection(cur, score):
         # Print images to screen
         if LINES:
             cv2.imshow("houghlines", cur)
-        cv2.waitKey(50)
+        cv2.waitKey(3)
 
     else: 
         print("exception")
@@ -212,7 +220,7 @@ def lineDetection(cur, score):
         # Print images to screen
         if LINES:
             cv2.imshow("houghlines", cur)
-            cv2.waitKey(50)
+            cv2.waitKey(3)
    
     # # invert the image
     # newImg =  cv2.bitwise_not(newImg)
